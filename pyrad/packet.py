@@ -14,7 +14,7 @@ except ImportError:
     # BBB for python 2.4
     import md5
     md5_constructor = md5.new
-import six
+
 from pyrad import tools
 
 # Packet codes
@@ -60,7 +60,7 @@ class Packet(dict):
     :obj:`AuthPacket` or :obj:`AcctPacket` classes.
     """
 
-    def __init__(self, code=0, id=None, secret=six.b(''), authenticator=None,
+    def __init__(self, code=0, id=None, secret='', authenticator=None,
             **attributes):
         """Constructor
 
@@ -81,11 +81,11 @@ class Packet(dict):
             self.id = id
         else:
             self.id = CreateID()
-        if not isinstance(secret, six.binary_type):
+        if not isinstance(secret, str):
             raise TypeError('secret must be a binary string')
         self.secret = secret
         if authenticator is not None and \
-                not isinstance(authenticator, six.binary_type):
+                not isinstance(authenticator, str):
                     raise TypeError('authenticator must be a binary string')
         self.authenticator = authenticator
 
@@ -166,7 +166,7 @@ class Packet(dict):
         self.setdefault(key, []).append(value)
 
     def __getitem__(self, key):
-        if not isinstance(key, six.string_types):
+        if not isinstance(key, basestring):
             return dict.__getitem__(self, key)
 
         values = dict.__getitem__(self, self._EncodeKey(key))
@@ -188,7 +188,7 @@ class Packet(dict):
         dict.__delitem__(self, self._EncodeKey(key))
 
     def __setitem__(self, key, item):
-        if isinstance(key, six.string_types):
+        if isinstance(key, basestring):
             (key, item) = self._EncodeKeyValues(key, [item])
             dict.__setitem__(self, key, item)
         else:
@@ -212,10 +212,7 @@ class Packet(dict):
         data = []
         for i in range(16):
             data.append(random_generator.randrange(0, 256))
-        if six.PY3:
-            return bytes(data)
-        else:
-            return ''.join(chr(b) for b in data)
+        return ''.join(chr(b) for b in data)
 
     def CreateID(self):
         """Create a packet ID.  All RADIUS requests have a ID which is used to
@@ -270,7 +267,7 @@ class Packet(dict):
         return struct.pack('!BB', key, (len(value) + 2)) + value
 
     def _PktEncodeAttributes(self):
-        result = six.b('')
+        result = ''
         for (code, datalst) in self.items():
             for data in datalst:
                 result += self._PktEncodeAttribute(code, data)
@@ -329,7 +326,7 @@ class Packet(dict):
 
 
 class AuthPacket(Packet):
-    def __init__(self, code=AccessRequest, id=None, secret=six.b(''),
+    def __init__(self, code=AccessRequest, id=None, secret='',
             authenticator=None, **attributes):
         """Constructor
 
@@ -389,21 +386,17 @@ class AuthPacket(Packet):
         :rtype:          unicode string
         """
         buf = password
-        pw = six.b('')
+        pw = ''
 
         last = self.authenticator
         while buf:
             hash = md5_constructor(self.secret + last).digest()
-            if six.PY3:
-                for i in range(16):
-                    pw += bytes((hash[i] ^ buf[i],))
-            else:
-                for i in range(16):
-                    pw += chr(ord(hash[i]) ^ ord(buf[i]))
+            for i in range(16):
+                pw += chr(ord(hash[i]) ^ ord(buf[i]))
 
             (last, buf) = (buf[:16], buf[16:])
 
-        while pw.endswith(six.b('\x00')):
+        while pw.endswith('\x00'):
             pw = pw[:-1]
 
         return pw.decode('utf-8')
@@ -425,25 +418,21 @@ class AuthPacket(Packet):
         if self.authenticator is None:
             self.authenticator = self.CreateAuthenticator()
 
-        if isinstance(password, six.text_type):
+        if isinstance(password, unicode):
             password = password.encode('utf-8')
 
         buf = password
         if len(password) % 16 != 0:
-            buf += six.b('\x00') * (16 - (len(password) % 16))
+            buf += '\x00' * (16 - (len(password) % 16))
 
         hash = md5_constructor(self.secret + self.authenticator).digest()
-        result = six.b('')
+        result = ''
 
         last = self.authenticator
         while buf:
             hash = md5_constructor(self.secret + last).digest()
-            if six.PY3:
-                for i in range(16):
-                    result += bytes((hash[i] ^ buf[i],))
-            else:
-                for i in range(16):
-                    result += chr(ord(hash[i]) ^ ord(buf[i]))
+            for i in range(16):
+                result += chr(ord(hash[i]) ^ ord(buf[i]))
 
             last = result[-16:]
             buf = buf[16:]
@@ -456,7 +445,7 @@ class AcctPacket(Packet):
     of the generic :obj:`Packet` class for accounting packets.
     """
 
-    def __init__(self, code=AccountingRequest, id=None, secret=six.b(''),
+    def __init__(self, code=AccountingRequest, id=None, secret='',
             authenticator=None, **attributes):
         """Constructor
 
@@ -491,7 +480,7 @@ class AcctPacket(Packet):
         :rtype: boolean
         """
         assert(self.raw_packet)
-        hash = md5_constructor(self.raw_packet[0:4] + 16 * six.b('\x00') +
+        hash = md5_constructor(self.raw_packet[0:4] + 16 * '\x00' +
                 self.raw_packet[20:] + self.secret).digest()
         return hash == self.authenticator
 
@@ -510,7 +499,7 @@ class AcctPacket(Packet):
             self.id = self.CreateID()
 
         header = struct.pack('!BBH', self.code, self.id, (20 + len(attr)))
-        self.authenticator = md5_constructor(header[0:4] + 16 * six.b('\x00') + attr
+        self.authenticator = md5_constructor(header[0:4] + 16 * '\x00' + attr
             + self.secret).digest()
         return header + self.authenticator + attr
 

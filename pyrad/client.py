@@ -7,9 +7,10 @@ __docformat__ = "epytext en"
 import select
 import socket
 import time
-import six
 from pyrad import host
 from pyrad import packet
+#from select import cpython_compatible_select as select
+
 
 
 class Timeout(Exception):
@@ -29,7 +30,7 @@ class Client(host.Host):
     :type timeout: integer
     """
     def __init__(self, server, authport=1812, acctport=1813,
-            secret=six.b(''), dict=None):
+            secret='', dict=None):
 
         """Constructor.
 
@@ -70,6 +71,7 @@ class Client(host.Host):
                                        socket.SOCK_DGRAM)
             self._socket.setsockopt(socket.SOL_SOCKET,
                                     socket.SO_REUSEADDR, 1)
+            self._socket.setblocking(0)
 
     def _CloseSocket(self):
         if self._socket:
